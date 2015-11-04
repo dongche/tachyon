@@ -22,6 +22,7 @@ import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
 
 import tachyon.security.authentication.AuthType;
+import tachyon.util.OSUtils;
 
 /**
  * A JAAS configuration that defines the login modules, by which JAAS uses to login.
@@ -35,6 +36,18 @@ import tachyon.security.authentication.AuthType;
 public final class TachyonJaasConfiguration extends Configuration {
 
   private static final Map<String, String> EMPTY_JAAS_OPTIONS = new HashMap<String, String>();
+  private static final Map<String, String> KERBEROS_JAAS_OPTIONS = new HashMap<String, String>();
+
+  static {
+    if (OSUtils.IBM_JAVA) {
+      KERBEROS_JAAS_OPTIONS.put("credsType", "both");
+    } else {
+      KERBEROS_JAAS_OPTIONS.put("doNotPrompt", "true");
+      KERBEROS_JAAS_OPTIONS.put("useKeyTab", "true");
+      KERBEROS_JAAS_OPTIONS.put("storeKey", "true");
+    }
+    KERBEROS_JAAS_OPTIONS.put("refreshKrb5Config", "true");
+  }
 
   private static final AppConfigurationEntry OS_SPECIFIC_LOGIN = new AppConfigurationEntry(
       TachyonJaasProperties.OS_LOGIN_MODULE_NAME,
@@ -50,8 +63,9 @@ public final class TachyonJaasConfiguration extends Configuration {
       TachyonLoginModule.class.getName(), AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
       EMPTY_JAAS_OPTIONS);
 
-  // TODO: add Kerberos_LOGIN module
-  // private static final AppConfigurationEntry KERBEROS_LOGIN = ...
+  private static final AppConfigurationEntry KERBEROS_LOGIN = new AppConfigurationEntry(
+      TachyonJaasProperties.KERBEROS_LOGIN_MODULE_NAME,
+      AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, KERBEROS_JAAS_OPTIONS);
 
   /**
    * In SIMPLE mode, JAAS first tries to retrieve the user name set by the application with
@@ -63,8 +77,8 @@ public final class TachyonJaasConfiguration extends Configuration {
   private static final AppConfigurationEntry[] SIMPLE = new AppConfigurationEntry[] {APP_LOGIN,
       OS_SPECIFIC_LOGIN, TACHYON_LOGIN};
 
-  // TODO: add Kerberos mode
-  // private static final AppConfigurationEntry[] KERBEROS = ...
+  private static final AppConfigurationEntry[] KERBEROS = new AppConfigurationEntry[]
+      {KERBEROS_LOGIN, TACHYON_LOGIN};
 
   @Override
   public AppConfigurationEntry[] getAppConfigurationEntry(String appName) {
@@ -72,9 +86,18 @@ public final class TachyonJaasConfiguration extends Configuration {
         || appName.equalsIgnoreCase(AuthType.CUSTOM.getAuthName())) {
       return SIMPLE;
     } else if (appName.equalsIgnoreCase(AuthType.KERBEROS.getAuthName())) {
-      // TODO: return KERBEROS;
-      throw new UnsupportedOperationException("Kerberos is not supported currently.");
+      return KERBEROS;
     }
     return null;
+  }
+
+  public static void setKerberosJaasOptions(String principal, String keytab) {
+    if (OSUtils.IBM_JAVA) {
+      KERBEROS_JAAS_OPTIONS.put("useKeytab",
+          keytab.startsWith("file://") ? keytab : "file://" + keytab);
+    } else {
+      KERBEROS_JAAS_OPTIONS.put("keyTab", keytab);
+    }
+    KERBEROS_JAAS_OPTIONS.put("principal", principal);
   }
 }

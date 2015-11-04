@@ -139,6 +139,7 @@
     <slf4j.version>1.7.2</slf4j.version>
     <test.output.redirect>true</test.output.redirect>
     <hadoop-openstack.version>2.6.0</hadoop-openstack.version>
+    <maven-bundle-plugin.version>2.5.0</maven-bundle-plugin.version>
   </properties>
 
   <modules>
@@ -253,6 +254,12 @@
         <scope>test</scope>
       </dependency>
       <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-minikdc</artifactId>
+        <version>2.6.0</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-all</artifactId>
         <version>1.10.8</version>
@@ -325,6 +332,11 @@
               <exclude>**/log4j.properties</exclude>
             </excludes>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>${maven-bundle-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>

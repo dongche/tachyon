@@ -18,11 +18,15 @@ package tachyon.security.login;
 import java.security.Principal;
 
 import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.login.LoginContext;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
+import tachyon.security.TachyonMiniKdc;
 import tachyon.security.User;
 
 /**
@@ -30,6 +34,18 @@ import tachyon.security.User;
  * used in {@link tachyon.security.login.TachyonJaasConfiguration}
  */
 public class LoginModuleTest {
+
+  private static TachyonMiniKdc sTachyonMiniKdc;
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    sTachyonMiniKdc = TachyonMiniKdc.getTachyonMiniKdc();
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    sTachyonMiniKdc.stop();
+  }
 
   /**
    * This test verify whether the simple login works in JAAS framework.
@@ -58,5 +74,24 @@ public class LoginModuleTest {
     Assert.assertTrue(subject.getPrincipals(User.class).isEmpty());
   }
 
-  // TODO: Kerberos login test
+  @Test
+  public void kerberosLoginTest() throws Exception {
+    Subject subject = new Subject();
+
+    // login, add Kerberos user into subject, and add corresponding Tachyon user into subject
+    TachyonJaasConfiguration.setKerberosJaasOptions(TachyonMiniKdc.TACHYON_CLIENT_USER_1,
+        sTachyonMiniKdc.getKeytab(TachyonMiniKdc.TACHYON_CLIENT_USER_1));
+
+    LoginContext loginContext = new LoginContext("kerberos", subject, null,
+        new TachyonJaasConfiguration());
+    loginContext.login();
+
+    // verify whether Kerberos user and Tachyon user is added.
+    Assert.assertFalse(subject.getPrincipals(KerberosPrincipal.class).isEmpty());
+    Assert.assertFalse(subject.getPrincipals(User.class).isEmpty());
+
+    // logout and verify the user is removed
+    loginContext.logout();
+    Assert.assertTrue(subject.getPrincipals(User.class).isEmpty());
+  }
 }

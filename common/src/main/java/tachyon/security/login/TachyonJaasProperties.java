@@ -26,9 +26,12 @@ public final class TachyonJaasProperties {
   /** Class name of Principal according to different OS type */
   public static final String OS_PRINCIPAL_CLASS_NAME;
 
+  public static final String KERBEROS_LOGIN_MODULE_NAME;
+
   static {
     OS_LOGIN_MODULE_NAME = getOSLoginModuleName();
     OS_PRINCIPAL_CLASS_NAME = getOSPrincipalClassName();
+    KERBEROS_LOGIN_MODULE_NAME = getKerberosLoginModuleName();
   }
 
   /**
@@ -73,5 +76,10 @@ public final class TachyonJaasProperties {
           : "com.sun.security.auth.UnixPrincipal";
     }
     return principalClassName;
+  }
+
+  private static String getKerberosLoginModuleName() {
+    return OSUtils.IBM_JAVA ? "com.ibm.security.auth.module.Krb5LoginModule"
+        : "com.sun.security.auth.module.Krb5LoginModule";
   }
 }

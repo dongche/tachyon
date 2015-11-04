@@ -21,6 +21,7 @@ import java.util.Set;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 
@@ -86,8 +87,8 @@ public final class TachyonLoginModule implements LoginModule {
 
     Principal user = null;
 
-    // TODO: get a Kerberos user if we are using Kerberos.
-    // user = getKerberosUser();
+    // get a user from Kerberos
+    user = getPrincipalUser(KerberosPrincipal.class.getName());
 
     // get a OS user
     if (user == null) {
