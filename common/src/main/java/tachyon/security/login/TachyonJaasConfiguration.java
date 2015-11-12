@@ -34,19 +34,41 @@ import tachyon.util.OSUtils;
  * modules to be used.
  */
 public final class TachyonJaasConfiguration extends Configuration {
+  public static final String KERBEROS_USE_KEYTAB = "KEYTAB";
 
   private static final Map<String, String> EMPTY_JAAS_OPTIONS = new HashMap<String, String>();
-  private static final Map<String, String> KERBEROS_JAAS_OPTIONS = new HashMap<String, String>();
+  private static final Map<String, String> KERBEROS_KEYTAB_JAAS_OPTIONS =
+      new HashMap<String, String>();
+  private static final Map<String, String> KERBEROS_CACHE_JAAS_OPTIONS =
+      new HashMap<String, String>();
 
   static {
+    // init KERBEROS_KEYTAB_JAAS_OPTIONS
     if (OSUtils.IBM_JAVA) {
-      KERBEROS_JAAS_OPTIONS.put("credsType", "both");
+      KERBEROS_KEYTAB_JAAS_OPTIONS.put("credsType", "both");
     } else {
-      KERBEROS_JAAS_OPTIONS.put("doNotPrompt", "true");
-      KERBEROS_JAAS_OPTIONS.put("useKeyTab", "true");
-      KERBEROS_JAAS_OPTIONS.put("storeKey", "true");
+      KERBEROS_KEYTAB_JAAS_OPTIONS.put("doNotPrompt", "true");
+      KERBEROS_KEYTAB_JAAS_OPTIONS.put("useKeyTab", "true");
+      KERBEROS_KEYTAB_JAAS_OPTIONS.put("storeKey", "true");
     }
-    KERBEROS_JAAS_OPTIONS.put("refreshKrb5Config", "true");
+    KERBEROS_KEYTAB_JAAS_OPTIONS.put("refreshKrb5Config", "true");
+
+    // init KERBEROS_CACHE_JAAS_OPTIONS
+    if (OSUtils.IBM_JAVA) {
+      KERBEROS_CACHE_JAAS_OPTIONS.put("useDefaultCcache", "true");
+    } else {
+      KERBEROS_CACHE_JAAS_OPTIONS.put("doNotPrompt", "true");
+      KERBEROS_CACHE_JAAS_OPTIONS.put("useTicketCache", "true");
+    }
+    String ticketCache = System.getenv("KRB5CCNAME");
+    if (ticketCache != null) {
+      if (OSUtils.IBM_JAVA) {
+        System.setProperty("KRB5CCNAME", ticketCache);
+      } else {
+        KERBEROS_CACHE_JAAS_OPTIONS.put("ticketCache", ticketCache);
+      }
+    }
+    KERBEROS_CACHE_JAAS_OPTIONS.put("renewTGT", "true");
   }
 
   private static final AppConfigurationEntry OS_SPECIFIC_LOGIN = new AppConfigurationEntry(
@@ -63,9 +85,13 @@ public final class TachyonJaasConfiguration extends Configuration {
       TachyonLoginModule.class.getName(), AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
       EMPTY_JAAS_OPTIONS);
 
-  private static final AppConfigurationEntry KERBEROS_LOGIN = new AppConfigurationEntry(
+  private static final AppConfigurationEntry KERBEROS_KEYTAB_LOGIN = new AppConfigurationEntry(
       TachyonJaasProperties.KERBEROS_LOGIN_MODULE_NAME,
-      AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, KERBEROS_JAAS_OPTIONS);
+      AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, KERBEROS_KEYTAB_JAAS_OPTIONS);
+
+  private static final AppConfigurationEntry KERBEROS_CACHE_LOGIN = new AppConfigurationEntry(
+      TachyonJaasProperties.KERBEROS_LOGIN_MODULE_NAME,
+      AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, KERBEROS_CACHE_JAAS_OPTIONS);
 
   /**
    * In SIMPLE mode, JAAS first tries to retrieve the user name set by the application with
@@ -77,8 +103,11 @@ public final class TachyonJaasConfiguration extends Configuration {
   private static final AppConfigurationEntry[] SIMPLE = new AppConfigurationEntry[] {APP_LOGIN,
       OS_SPECIFIC_LOGIN, TACHYON_LOGIN};
 
-  private static final AppConfigurationEntry[] KERBEROS = new AppConfigurationEntry[]
-      {KERBEROS_LOGIN, TACHYON_LOGIN};
+  private static final AppConfigurationEntry[] KERBEROS_KEYTAB = new AppConfigurationEntry[]
+      {KERBEROS_KEYTAB_LOGIN, TACHYON_LOGIN};
+
+  private static final AppConfigurationEntry[] KERBEROS_CACHE = new AppConfigurationEntry[]
+      {KERBEROS_CACHE_LOGIN, TACHYON_LOGIN};
 
   @Override
   public AppConfigurationEntry[] getAppConfigurationEntry(String appName) {
@@ -86,18 +115,21 @@ public final class TachyonJaasConfiguration extends Configuration {
         || appName.equalsIgnoreCase(AuthType.CUSTOM.getAuthName())) {
       return SIMPLE;
     } else if (appName.equalsIgnoreCase(AuthType.KERBEROS.getAuthName())) {
-      return KERBEROS;
+      return KERBEROS_CACHE;
+    } else if (appName.equalsIgnoreCase(AuthType.KERBEROS.getAuthName() + "-"
+        + KERBEROS_USE_KEYTAB)) {
+      return KERBEROS_KEYTAB;
     }
     return null;
   }
 
   public static void setKerberosJaasOptions(String principal, String keytab) {
     if (OSUtils.IBM_JAVA) {
-      KERBEROS_JAAS_OPTIONS.put("useKeytab",
-          keytab.startsWith("file://") ? keytab : "file://" + keytab);
+      KERBEROS_KEYTAB_JAAS_OPTIONS.put("useKeytab", keytab.startsWith("file://") ? keytab :
+          "file://" + keytab);
     } else {
-      KERBEROS_JAAS_OPTIONS.put("keyTab", keytab);
+      KERBEROS_KEYTAB_JAAS_OPTIONS.put("keyTab", keytab);
     }
-    KERBEROS_JAAS_OPTIONS.put("principal", principal);
+    KERBEROS_KEYTAB_JAAS_OPTIONS.put("principal", principal);
   }
 }

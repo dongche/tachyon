@@ -97,7 +97,7 @@ public final class TachyonLoginModule implements LoginModule {
 
     // if a user is found, convert it to a Tachyon user and save it.
     if (user != null) {
-      mUser = new User(user.getName());
+      mUser = new User(user.getName(), mSubject);
       mSubject.getPrincipals().add(mUser);
       return true;
     }

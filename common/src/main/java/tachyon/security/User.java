@@ -15,6 +15,7 @@
 
 package tachyon.security;
 
+import javax.security.auth.Subject;
 import java.security.Principal;
 
 /**
@@ -23,16 +24,26 @@ import java.security.Principal;
  */
 public final class User implements Principal {
   private final String mName;
+  private final Subject mSubject;
 
   // TODO: add more attributes and methods for supporting Kerberos
 
   public User(String name) {
+    this(name, null);
+  }
+
+  public User(String name, Subject subject) {
     mName = name;
+    mSubject = subject;
   }
 
   @Override
   public String getName() {
     return mName;
+  }
+
+  public Subject getSubject() {
+    return mSubject;
   }
 
   @Override

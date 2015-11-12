@@ -332,6 +332,10 @@ public final class Constants {
   public static final String SECURITY_AUTHENTICATION_TYPE = "tachyon.security.authentication.type";
   public static final String SECURITY_AUTHENTICATION_CUSTOM_PROVIDER =
       "tachyon.security.authentication.custom.provider.class";
+  public static final String SECURITY_SERVER_KERBEROS_PRINCIPAL = "tachyon.security.server"
+      + ".kerberos.principal";
+  public static final String SECURITY_SERVER_KERBEROS_KEYTAB = "tachyon.security.server.kerberos"
+      + ".keytab";
 
   // Relative path to Tachyon target jar
   public static final String TACHYON_JAR = "target/tachyon-" + Version.VERSION

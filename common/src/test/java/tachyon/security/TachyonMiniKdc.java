@@ -29,7 +29,7 @@ public class TachyonMiniKdc {
 
   //TODO: add more users when test cases become complex.
   // initialize a set of principals for test use
-  public static final String TACHYON_SERVICE_PRINCIPAL = "tachyon";
+  public static final String TACHYON_SERVICE = "tachyon";
   public static final String TACHYON_CLIENT_USER_1 = "user1";
   public static final String TACHYON_CLIENT_USER_2 = "user2";
 
@@ -53,13 +53,22 @@ public class TachyonMiniKdc {
     mMiniKdc = new MiniKdc(mMiniKdcConf, mWorkDir);
     mMiniKdc.start();
 
-    initializeUserPrincipal(TACHYON_SERVICE_PRINCIPAL, TACHYON_CLIENT_USER_1,
+    initializeUserPrincipal(getTachyonServicePrincipal(), TACHYON_CLIENT_USER_1,
         TACHYON_CLIENT_USER_2);
   }
 
+  public String getTachyonServicePrincipal() {
+    return TACHYON_SERVICE + "/" + mMiniKdc.getHost();
+  }
+
+  public String getFullTachyonServicePrincipal() {
+    return getTachyonServicePrincipal() + "@" + mMiniKdc.getRealm();
+  }
+
   private void initializeUserPrincipal(String... principals) throws Exception {
+    int count = 0;
     for (String principal : principals) {
-      File keytab = new File(mWorkDir, principal + ".keytab");
+      File keytab = new File(mWorkDir, "miniKdc" + count++ + ".keytab");
       mMiniKdc.createPrincipal(keytab, principal);
       mUserPrincipalKeytab.put(principal, keytab.getPath());
     }
@@ -71,5 +80,9 @@ public class TachyonMiniKdc {
 
   public void stop() {
     mMiniKdc.stop();
+  }
+
+  public String getConfPath() {
+    return mMiniKdc.getKrb5conf().getAbsolutePath();
   }
 }

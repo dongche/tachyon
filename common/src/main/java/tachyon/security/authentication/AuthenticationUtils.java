@@ -18,8 +18,6 @@ package tachyon.security.authentication;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import javax.security.sasl.SaslException;
-
 import org.apache.thrift.transport.TFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
@@ -43,10 +41,10 @@ public final class AuthenticationUtils {
    *
    * @param tachyonConf Tachyon Configuration
    * @return a corresponding TTransportFactory
-   * @throws SaslException if building a TransportFactory fails
+   * @throws java.io.IOException if building a TransportFactory fails
    */
   public static TTransportFactory getServerTransportFactory(TachyonConf tachyonConf)
-      throws SaslException {
+      throws IOException {
     AuthType authType = tachyonConf.getEnum(Constants.SECURITY_AUTHENTICATION_TYPE, AuthType.class);
     switch (authType) {
       case NOSASL:
@@ -55,8 +53,7 @@ public final class AuthenticationUtils {
       case CUSTOM:
         return PlainSaslUtils.getPlainServerTransportFactory(authType, tachyonConf);
       case KERBEROS:
-        throw new UnsupportedOperationException("getServerTransportFactory: Kerberos is "
-            + "not supported currently.");
+        return KerberosSaslUtils.getKerberosServerTransportFactory(tachyonConf);
       default:
         throw new UnsupportedOperationException("getServerTransportFactory: Unsupported "
             + "authentication type: " + authType.getAuthName());
@@ -87,8 +84,7 @@ public final class AuthenticationUtils {
         String username = LoginUser.get(tachyonConf).getName();
         return PlainSaslUtils.getPlainClientTransport(username, "noPassword", tTransport);
       case KERBEROS:
-        throw new UnsupportedOperationException("getClientTransport: Kerberos is not "
-            + "supported currently.");
+        return KerberosSaslUtils.getKerberosClientTransport(tachyonConf, null, null, tTransport);
       default:
         throw new UnsupportedOperationException(
             "getClientTransport: Unsupported authentication type: " + authType.getAuthName());

@@ -117,6 +117,15 @@
         <inherited>true</inherited>
         <extensions>true</extensions>
       </plugin>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+                <environmentVariables>
+                    <KRB5CCNAME>FILE:${project.build.directory}/krb5cc</KRB5CCNAME>
+                </environmentVariables>
+            </configuration>
+        </plugin>
     </plugins>
   </build>
 </project>

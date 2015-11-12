@@ -15,6 +15,7 @@
 
 package tachyon.security.authentication;
 
+import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 
 import javax.security.sasl.AuthenticationException;
@@ -27,14 +28,18 @@ import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 import org.apache.thrift.transport.TTransportFactory;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import tachyon.Constants;
 import tachyon.conf.TachyonConf;
+import tachyon.security.LoginUser;
+import tachyon.security.TachyonMiniKdc;
 import tachyon.util.network.NetworkAddressUtils;
 
 /**
@@ -62,6 +67,13 @@ public class AuthenticationUtilsTest {
     int port = NetworkAddressUtils.getThriftPort(mServerTSocket);
     mServerAddress = new InetSocketAddress("localhost", port);
     mClientTSocket = AuthenticationUtils.createTSocket(mServerAddress);
+    clearLoginUser();
+  }
+
+  private void clearLoginUser() throws Exception {
+    Field field = LoginUser.class.getDeclaredField("sLoginUser");
+    field.setAccessible(true);
+    field.set(null, null);
   }
 
   /**
@@ -306,16 +318,43 @@ public class AuthenticationUtilsTest {
   }
 
   /**
-   * TODO: In KERBEROS mode, ...
+   * In KERBEROS mode
    */
   @Test
   public void kerberosAuthenticationTest() throws Exception {
     mTachyonConf.set(Constants.SECURITY_AUTHENTICATION_TYPE, "KERBEROS");
+    mTachyonConf.set(Constants.SECURITY_SERVER_KERBEROS_PRINCIPAL,
+        sTachyonMiniKdc.getTachyonServicePrincipal());
+    mTachyonConf.set(Constants.SECURITY_SERVER_KERBEROS_KEYTAB,
+        sTachyonMiniKdc.getKeytab(sTachyonMiniKdc.getTachyonServicePrincipal()));
 
-    // throw unsupported exception currently
-    mThrown.expect(UnsupportedOperationException.class);
-    mThrown.expectMessage("Kerberos is not supported currently.");
+    // start server
     startServerThread();
+
+    // when connecting, authentication happens.
+    clearLoginUser();
+    LoginUser.loginByKerberosKeytab(mTachyonConf, TachyonMiniKdc.TACHYON_CLIENT_USER_1,
+        sTachyonMiniKdc.getKeytab(TachyonMiniKdc.TACHYON_CLIENT_USER_1));
+    TTransport client = KerberosSaslUtils.getKerberosClientTransport(mTachyonConf,
+        sTachyonMiniKdc.getFullTachyonServicePrincipal(), null, mClientTSocket);
+    client.open();
+    Assert.assertTrue(client.isOpen());
+
+    // clean up
+    client.close();
+    mServer.stop();
+  }
+
+  private static TachyonMiniKdc sTachyonMiniKdc;
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    sTachyonMiniKdc = TachyonMiniKdc.getTachyonMiniKdc();
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    sTachyonMiniKdc.stop();
   }
 
   private void startServerThread() throws Exception {

@@ -16,6 +16,8 @@
 package tachyon.security;
 
 import java.io.IOException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.util.Set;
 
 import javax.security.auth.Subject;
@@ -55,11 +57,28 @@ public final class LoginUser {
     if (sLoginUser == null) {
       synchronized (LoginUser.class) {
         if (sLoginUser == null) {
-          sLoginUser = login(conf);
+          sLoginUser = getLoginUser(conf);
         }
       }
     }
     return sLoginUser;
+  }
+
+  private static User getLoginUser(TachyonConf conf) throws IOException {
+    AccessControlContext context = AccessController.getContext();
+    Subject subject = Subject.getSubject(context);
+
+    // login, if no proper subject in context
+    if (subject == null || subject.getPrincipals(User.class).isEmpty()) {
+      return login(conf, null);
+    }
+
+    // fetch user from subject in context, if any
+    Set<User> userSet = subject.getPrincipals(User.class);
+    if (userSet.size() > 1) {
+      throw new IOException("More than one Tachyon User is found in the context subject");
+    }
+    return userSet.iterator().next();
   }
 
   /**
@@ -69,15 +88,16 @@ public final class LoginUser {
    * @return the login user
    * @throws IOException if login fails
    */
-  private static User login(TachyonConf conf) throws IOException {
+  private static User login(TachyonConf conf, String appName) throws IOException {
     AuthType authType = conf.getEnum(Constants.SECURITY_AUTHENTICATION_TYPE, AuthType.class);
     checkSecurityEnabled(authType);
 
     try {
       Subject subject = new Subject();
 
-      LoginContext loginContext =
-          new LoginContext(authType.getAuthName(), subject, null, new TachyonJaasConfiguration());
+      LoginContext loginContext = new LoginContext(
+          appName != null ? appName : authType.getAuthName(),
+          subject, null, new TachyonJaasConfiguration());
       loginContext.login();
 
       Set<User> userSet = subject.getPrincipals(User.class);
@@ -93,14 +113,22 @@ public final class LoginUser {
     }
   }
 
+  public static void loginByKerberosKeytab(TachyonConf conf, String principal, String keytab)
+      throws IOException {
+    TachyonJaasConfiguration.setKerberosJaasOptions(principal, keytab);
+
+    sLoginUser = login(conf, AuthType.KERBEROS.getAuthName() + "-" + TachyonJaasConfiguration
+        .KERBEROS_USE_KEYTAB);
+  }
+
   /**
    * Checks whether Tachyon is running in secure mode, such as SIMPLE, KERBEROS, CUSTOM.
    *
    * @param authType the authentication type in configuration
    */
   private static void checkSecurityEnabled(AuthType authType) {
-    // TODO: add Kerberos condition check.
-    if (authType != AuthType.SIMPLE && authType != AuthType.CUSTOM) {
+    if (authType != AuthType.SIMPLE && authType != AuthType.CUSTOM && authType != AuthType
+        .KERBEROS) {
       throw new UnsupportedOperationException("User is not supported in " + authType.getAuthName()
           + " mode");
     }
